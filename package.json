@@ -9,6 +9,7 @@
   "author": "SNSA",
   "license": "MIT",
   "dependencies": {
-    "websocket": "^1.0.22"
+    "q": "^1.4.1",
+    "ws": "^1.1.0"
   }
 }

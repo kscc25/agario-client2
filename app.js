@@ -1,6 +1,11 @@
-var W3CWebSocket = require('websocket').w3cwebsocket;
-
-var client = new W3CWebSocket('ws://167.114.209.42:1518');
+const WebSocket = require('ws');
+const url = 'ws://139.162.57.212:1500';
+const core = require('./core')(url);
+const client = new WebSocket(url, null, {
+  headers: {
+    Origin: 'http://agar.io'
+  } 
+});
 
 client.binaryType = 'arraybuffer';
 
@@ -11,18 +16,11 @@ client.onerror = function() {
 client.onopen = function() {
   console.log('WebSocket Client Connected');
 
-  function sendNumber() {
-    if (client.readyState === client.OPEN) {
-      var number = Math.round(Math.random() * 0xFFFFFF);
-      client.send(number.toString());
-      setTimeout(sendNumber, 1000);
-    }
-  }
-  sendNumber();
+  setTimeout(auth, 1000);
 };
 
 client.onclose = function() {
-  console.log('echo-protocol Client Closed');
+  console.log('WebSocket Client Closed');
 };
 
 client.onmessage = function(e) {
@@ -39,11 +37,12 @@ client.onmessage = function(e) {
 };
 
 function auth() {
-  var data = new Uint8Array([-2, 6, 0, 0, 0]);
-  client.send(data);
-
-  data = new Uint8Array([-1, 95, 1, 101, 37]);
-  client.send(data);
+  // client.send(new Uint8Array([-2, 6, 0, 0, 0]));
+  // client.send(new Uint8Array([-1, 60, -95, -63, -47]))
+  core.getInitData().then(function(data) {
+    client.send(data[0]);
+    client.send(data[1]);
+  });
 }
 
 function spawn() {
@@ -51,22 +50,26 @@ function spawn() {
   client.send(data);
 }
 
-function postAuth() {
-  var data = new Uint8Array([113, -82, -76, -2, -8, -88, -75, -95, 20, -102, 48, 6, 116, 37, -28, -71, -1, -30, -99, -120, 28]);
-  client.send(data);
+function postAuth(data) {
+  core.getAuthData(data).then(function(packet113) {
+    console.log('Sending packet113:', packet113);
+
+    client.send(packet113);
+    spawn();
+  });
 }
 
 var packetHandlers = {
   18: function() {
-    console.log('Server ask for authentiation');
-    auth();
+    console.log('Packet 18: reset all cells');
+    // auth();
   },
   49: function(data) {
     //console.log('Leaderboard:', data);
   },
   112: function(data) {
-    console.log('Server is ready or ask for sth?', data);
-    postAuth();
+    console.log('Packet112: Server is ready or ask for sth?', data);
+    postAuth(data);
   },
   128: function() {
     console.log('Server asks for reload client, client is outdated?');
@@ -79,3 +82,4 @@ var packetHandlers = {
     //console.log('World update:', data);
   }
 };
+
